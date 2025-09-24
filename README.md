@@ -273,7 +273,7 @@ function WalletButton() {
 
 ## 🔗 Related Repositories
 
-- **Backend**: [minerva-estate-backend](../minerva-backend-repo)
+- **Backend**: [minerva-estate-backend](https://github.com/metabit-network/minerva-backend)
 - **Contracts**: [minerva-estate-contracts](link-when-created)
 
 ## 🐛 Troubleshooting
