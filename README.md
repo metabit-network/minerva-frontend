@@ -44,9 +44,6 @@ Create `.env.local` file:
 # API Configuration
 NEXT_PUBLIC_API_URL=http://localhost:3001
 
-# Solana Configuration
-NEXT_PUBLIC_SOLANA_NETWORK=devnet
-
 # Development Settings
 NEXT_PUBLIC_SKIP_KYC=true        # Development only - MUST be false in production
 ```
@@ -65,7 +62,7 @@ npm test           # Run tests (when configured)
 ## 🔗 Wallet Integration
 
 ### Phantom Wallet Setup
-The app integrates with Phantom wallet for Solana transactions:
+The app integrates with Phantom wallet for Ethereum transactions:
 
 1. **Install Phantom** - Browser extension required
 2. **Connect Wallet** - Click "Connect Wallet" button
@@ -189,7 +186,6 @@ npm run start
 ### Environment Variables (Production)
 ```env
 NEXT_PUBLIC_API_URL=https://your-api-domain.com
-NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta
 NEXT_PUBLIC_SKIP_KYC=false        # CRITICAL: Must be false in production
 ```
 
