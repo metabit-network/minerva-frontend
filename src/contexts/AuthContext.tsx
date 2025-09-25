@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
 import axios from 'axios';
 import { User, AuthResponse, WalletAuthRequest } from '../types';
 
@@ -35,21 +35,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  // Safely access wallet context with fallback
-  let walletState;
-  try {
-    walletState = useWallet();
-  } catch (error) {
-    // Wallet context not available yet, use defaults
-    walletState = {
-      publicKey: null,
-      signMessage: null,
-      connected: false,
-      disconnect: () => {}
-    };
-  }
+  // Use wagmi hooks for Ethereum wallet
+  const { isConnected, address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const { disconnect } = useDisconnect();
 
-  const { publicKey, signMessage, connected, disconnect } = walletState;
+  // Map to legacy variable names for compatibility
+  const connected = isConnected;
+  const publicKey = address ? { toString: () => address } : null;
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
@@ -87,7 +80,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const login = async () => {
-    if (!publicKey || !signMessage) {
+    if (!publicKey || !signMessageAsync) {
       throw new Error('Wallet not connected or wallet context not available');
     }
 
@@ -116,12 +109,9 @@ By signing this message, you agree to authenticate with Minerva Estate platform.
       console.log('Requesting message signature from wallet...');
       console.log('Message to sign:', authMessage);
 
-      // Convert the formatted message to bytes
-      const messageBytes = new TextEncoder().encode(authMessage);
-
       let signature;
       try {
-        signature = await signMessage(messageBytes);
+        signature = await signMessageAsync({ message: authMessage });
       } catch (signError: any) {
         console.log('Message signing was cancelled or failed:', signError.message);
 

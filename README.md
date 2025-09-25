@@ -25,7 +25,7 @@ minerva-frontend/
 │   │   ├── KycAuth.tsx          # KYC authentication
 │   │   └── ...
 │   ├── contexts/        # React contexts
-│   │   ├── WalletContext.tsx    # Solana wallet provider
+│   │   ├── WalletContext.tsx    # Ethereum wallet provider
 │   │   ├── AuthContext.tsx      # Authentication state
 │   │   └── KycAuthContext.tsx   # KYC authentication
 │   ├── lib/             # Utilities and helpers
@@ -74,7 +74,7 @@ The app integrates with Phantom wallet for Solana transactions:
 ### Supported Wallets
 - Phantom (primary)
 - Solflare
-- Other Solana Wallet Standard wallets
+- Other Ethereum Wallet Standard wallets
 
 ## 🎨 UI Components
 
@@ -123,7 +123,7 @@ function MyComponent() {
 ### Context Providers
 - **AuthContext** - Wallet authentication state
 - **KycAuthContext** - KYC authentication state
-- **WalletContext** - Solana wallet connection
+- **WalletContext** - Ethereum wallet connection
 
 ### Usage
 ```tsx
@@ -214,7 +214,7 @@ vercel --prod
 ## 🎯 Key Features
 
 ### 🔐 Multi-Auth System
-- **Phantom Wallet** - Solana wallet signatures
+- **Phantom Wallet** - Ethereum wallet signatures
 - **KYC System** - Email/password with verification
 - **Session Management** - Automatic token refresh
 

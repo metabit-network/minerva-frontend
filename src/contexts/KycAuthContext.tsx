@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
 import axios from 'axios';
 import { User, AuthResponse, WalletAuthRequest } from '../types';
 
@@ -60,22 +60,14 @@ export function KycAuthProvider({ children }: KycAuthProviderProps) {
   const [refreshTokenValue, setRefreshTokenValue] = useState<string | null>(null);
   const [sessionExpiresAt, setSessionExpiresAt] = useState<string | null>(null);
 
-  // Safely access wallet context with fallback
-  let walletState;
-  try {
-    walletState = useWallet();
-  } catch (error) {
-    // Wallet context not available yet, use defaults
-    walletState = {
-      publicKey: null,
-      signMessage: null,
-      connected: false,
-      disconnect: () => {},
-      select: () => {}
-    };
-  }
+  // Use wagmi hooks for Ethereum wallet
+  const { isConnected, address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const { disconnect } = useDisconnect();
 
-  const { publicKey, signMessage, connected, disconnect, select } = walletState;
+  // Map to legacy variable names for compatibility
+  const connected = isConnected;
+  const publicKey = address ? { toString: () => address } : null;
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
@@ -150,13 +142,13 @@ export function KycAuthProvider({ children }: KycAuthProviderProps) {
 
   const connectWallet = async () => {
     console.log('connectWallet called with state:', {
-      publicKey: publicKey?.toString(),
-      hasSignMessage: !!signMessage,
+      address: address,
+      hasSignMessage: !!signMessageAsync,
       kycUser: kycUser ? { username: kycUser.username, email: kycUser.email } : null,
       hasKycToken: !!kycToken
     });
 
-    if (!publicKey || !signMessage) {
+    if (!address || !signMessageAsync) {
       throw new Error('Wallet not connected or wallet context not available');
     }
 
@@ -169,7 +161,7 @@ export function KycAuthProvider({ children }: KycAuthProviderProps) {
     try {
       // Get nonce from backend
       const nonceResponse = await axios.get(`${backendUrl}/auth/nonce`, {
-        params: { wallet: publicKey.toString() }
+        params: { wallet: address }
       });
 
       const { nonce, timestamp } = nonceResponse.data.data;
@@ -181,7 +173,7 @@ Please sign this message to authenticate your wallet.
 
 This is a secure authentication process that proves you own this wallet address.
 
-Wallet: ${publicKey.toString()}
+Wallet: ${address}
 Nonce: ${nonce}
 Time: ${timestamp}
 
@@ -189,12 +181,9 @@ By signing this message, you agree to authenticate with Minerva Estate platform.
 
       console.log('Requesting message signature from wallet...');
 
-      // Convert the formatted message to bytes
-      const messageBytes = new TextEncoder().encode(authMessage);
-
       let signature;
       try {
-        signature = await signMessage(messageBytes);
+        signature = await signMessageAsync({ message: authMessage });
       } catch (signError: any) {
         console.log('Message signing was cancelled or failed:', signError.message);
 
@@ -211,13 +200,10 @@ By signing this message, you agree to authenticate with Minerva Estate platform.
         throw signError;
       }
 
-      // Convert signature to base64 for backend
-      const signatureBase64 = Buffer.from(signature).toString('base64');
-
       // Verify signature with backend and link to KYC user
       const authRequest: WalletAuthRequest & { kycEmail: string } = {
-        walletPubkey: publicKey.toString(),
-        signature: signatureBase64,
+        walletPubkey: address,
+        signature: signature,
         nonce,
         kycEmail: kycUser.email
       };
@@ -238,7 +224,7 @@ By signing this message, you agree to authenticate with Minerva Estate platform.
         const updatedKycUser = {
           ...kycUser,
           isWalletConnected: true,
-          walletPubkey: publicKey.toString()
+          walletPubkey: address
         };
         setKycUser(updatedKycUser);
         localStorage.setItem('minerva_kyc_user', JSON.stringify(updatedKycUser));
@@ -277,20 +263,10 @@ By signing this message, you agree to authenticate with Minerva Estate platform.
         // Disconnect wallet
         if (typeof disconnect === 'function') {
           try {
-            await disconnect();
+            disconnect();
             console.log('Wallet adapter disconnected');
           } catch (error) {
             console.log('Wallet adapter disconnect completed');
-          }
-        }
-
-        // Clear wallet selection
-        if (typeof select === 'function') {
-          try {
-            select(null);
-            console.log('Wallet selection cleared');
-          } catch (error) {
-            console.log('Wallet selection clear completed');
           }
         }
 
@@ -301,44 +277,25 @@ By signing this message, you agree to authenticate with Minerva Estate platform.
         // First disconnect the wallet
         if (typeof disconnect === 'function') {
           try {
-            await disconnect();
+            disconnect();
             console.log('Wallet adapter disconnected');
           } catch (error) {
             console.log('Wallet adapter disconnect completed');
           }
         }
 
-        // Clear wallet selection
-        if (typeof select === 'function') {
-          try {
-            select(null);
-            console.log('Wallet selection cleared');
-          } catch (error) {
-            console.log('Wallet selection clear completed');
-          }
-        }
-
         // Force clear any wallet connection state in the browser
         if (typeof window !== 'undefined') {
-          // Clear Phantom wallet connection
-          if ((window as any).phantom?.solana) {
+          // Clear Phantom Ethereum wallet connection
+          if ((window as any).phantom?.ethereum) {
             try {
-              await (window as any).phantom.solana.disconnect();
-              console.log('Phantom wallet disconnected');
+              // Phantom Ethereum doesn't have a disconnect method, but we can clear our references
+              console.log('Phantom Ethereum wallet reference cleared');
             } catch (error) {
-              console.log('Phantom wallet disconnect completed');
+              console.log('Phantom Ethereum wallet cleanup completed');
             }
           }
 
-          // Clear Solflare wallet connection
-          if ((window as any).solflare) {
-            try {
-              await (window as any).solflare.disconnect();
-              console.log('Solflare wallet disconnected');
-            } catch (error) {
-              console.log('Solflare wallet disconnect completed');
-            }
-          }
         }
 
         // Clear all auth state
@@ -349,23 +306,38 @@ By signing this message, you agree to authenticate with Minerva Estate platform.
         setRefreshTokenValue(null);
         setSessionExpiresAt(null);
 
-        // Clear localStorage
+        // Clear localStorage - all authentication and wallet related data
         localStorage.removeItem('minerva_token');
         localStorage.removeItem('minerva_user');
         localStorage.removeItem('minerva_kyc_token');
         localStorage.removeItem('minerva_kyc_user');
         localStorage.removeItem('minerva_refresh_token');
         localStorage.removeItem('minerva_session_expires');
+        localStorage.removeItem('minerva_selected_wallet');
+        localStorage.removeItem('minerva_wallet_cancelled');
+
+        // Set a flag to indicate user explicitly logged out to prevent auto-authentication
+        localStorage.setItem('minerva_user_logged_out', 'true');
+        localStorage.setItem('minerva_logout_timestamp', Date.now().toString());
 
         // Clear wallet adapter localStorage entries
         localStorage.removeItem('walletName');
         localStorage.removeItem('walletAdapter');
 
-        // Clear all potential wallet-related localStorage entries
+        // Clear all potential wallet and Ethereum-related localStorage entries
         const keysToRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (key && (key.includes('wallet') || key.includes('solana') || key.includes('phantom'))) {
+          if (key && (
+            key.includes('wallet') ||
+            key.includes('solana') ||
+            key.includes('phantom') ||
+            key.includes('ethereum') ||
+            key.includes('metamask') ||
+            key.includes('wagmi') ||
+            key.includes('connector') ||
+            key.toLowerCase().includes('auth')
+          )) {
             keysToRemove.push(key);
           }
         }

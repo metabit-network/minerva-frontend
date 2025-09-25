@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import "@solana/wallet-adapter-react-ui/styles.css";
 import { WalletContextProvider } from "@/contexts/WalletContext";
 import { KycAuthProvider } from "@/contexts/KycAuthContext";
 
@@ -17,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Minerva Estate - Real Estate Tokenization Platform",
-  description: "Invest in tokenized real estate with fractional ownership via NFTs on Solana",
+  description: "Invest in tokenized real estate with fractional ownership via NFTs on Ethereum",
 };
 
 export default function RootLayout({
