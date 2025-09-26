@@ -128,6 +128,48 @@ export function KycAuthProvider({ children }: KycAuthProviderProps) {
   }, []);
 
   const setKycAuth = async (newToken: string, newUser: any) => {
+    // Check if this is a different user than the current one
+    const isDifferentUser = kycUser && (
+      kycUser.email !== newUser.email ||
+      kycUser.username !== newUser.username ||
+      kycUser.id !== newUser.id
+    );
+
+    // If switching to a different user, clear wallet authentication state
+    if (isDifferentUser) {
+      console.log('Different user detected, clearing wallet authentication state');
+
+      // Clear wallet auth state
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('minerva_token');
+      localStorage.removeItem('minerva_user');
+
+      // Disconnect wallet
+      if (typeof disconnect === 'function') {
+        try {
+          disconnect();
+          console.log('Wallet disconnected for new user login');
+        } catch (error) {
+          console.log('Wallet disconnect completed with minor issues');
+        }
+      }
+
+      // Clear wallet-related localStorage
+      localStorage.removeItem('minerva_selected_wallet');
+      localStorage.removeItem('minerva_wallet_cancelled');
+      localStorage.removeItem('walletName');
+      localStorage.removeItem('walletAdapter');
+
+      // Clear wagmi-related persistence
+      localStorage.removeItem('wagmi.connected');
+      localStorage.removeItem('wagmi.wallet');
+      localStorage.removeItem('wagmi.store');
+
+      // Clear axios authorization header
+      delete axios.defaults.headers.common['Authorization'];
+    }
+
     // Set KYC authentication
     setKycToken(newToken);
     setKycUser(newUser);
@@ -135,9 +177,6 @@ export function KycAuthProvider({ children }: KycAuthProviderProps) {
     localStorage.setItem('minerva_kyc_user', JSON.stringify(newUser));
 
     console.log('KYC authentication set:', { username: newUser.username, email: newUser.email });
-
-    // Note: We don't clear wallet authentication here to allow wallet persistence
-    // across page reloads. Wallet clearing only happens on explicit logout.
   };
 
   const connectWallet = async () => {

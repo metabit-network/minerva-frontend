@@ -143,6 +143,37 @@ export function WalletConnect() {
     }
   }, [connected]);
 
+  // Auto-disconnect wallet on page load if connected but not authenticated (unless user explicitly connected)
+  useEffect(() => {
+    if (!mounted || isLoading || !connected) return;
+
+    // Check if user has valid authentication
+    const hasValidAuth = isAuthenticated || (localStorage.getItem('minerva_token') && localStorage.getItem('minerva_user'));
+
+    // Check if this is a fresh page load (no explicit connection in this session)
+    const hasExplicitConnection = localStorage.getItem('minerva_selected_wallet') && !localStorage.getItem('minerva_wallet_cancelled');
+
+    // If wallet is connected but user is not authenticated and hasn't explicitly connected in this session
+    if (connected && !hasValidAuth && !hasExplicitConnection) {
+      console.log('Auto-disconnecting wallet on page reload - no valid authentication');
+
+      // Disconnect the wallet silently
+      if (typeof disconnect === 'function') {
+        try {
+          disconnect();
+        } catch (error) {
+          console.log('Auto-disconnect completed');
+        }
+      }
+
+      // Clear wallet-related localStorage
+      localStorage.removeItem('minerva_selected_wallet');
+      localStorage.removeItem('wagmi.connected');
+      localStorage.removeItem('wagmi.wallet');
+      localStorage.removeItem('wagmi.store');
+    }
+  }, [mounted, connected, isAuthenticated, isLoading, disconnect]);
+
   // Clear explicit logout flag when user manually connects (not just wallet adapter connecting)
   useEffect(() => {
     if (connected && explicitLogout) {
